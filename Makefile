@@ -1,4 +1,4 @@
-BOARD :=	sparkfun_samd21_dev_usb
+BOARD :=	adafruit_pyportal_m4
 FIRMWARE :=	.pioenvs/$(BOARD)/firmware.bin
 SOURCES :=					\
 		src/main.cc

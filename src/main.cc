@@ -3,22 +3,24 @@
 #include <SPI.h>
 #include <fcntl.h>
 #include <strings.h>
-// #include "oled.h"
+#include "oled.h"
 
 #include <Adafruit_SleepyDog.h>
 #include <RTClib.h>
 #include <SdFat.h>
-#include <SFE_MicroOLED.h>
+/*#include <SFE_MicroOLED.h> */
 #include <SparkFunBME280.h>
 #include <SparkFunCCS811.h>
 #include <Streaming.h>
 
 
+#ifdef SAMD21
 #define Serial		SerialUSB
+#endif /* SAMD21 */
 #define CCS811_ADDR	0x5B
 #define MINUTE_MS	60000
-#define OLED_DCJ	1
-#define OLED_RESET	9 
+#define OLED_DCJ	0
+#define OLED_RESET	0
 #define SD_CS		10
 
 
@@ -28,8 +30,8 @@
 
 BME280		bme280;
 CCS811		ccs811(CCS811_ADDR);
-MicroOLED	oled(OLED_RESET, OLED_DCJ);
-// OLED		oled(OLED_RESET, OLED_DCJ);
+// MicroOLED	oled(OLED_RESET, OLED_DCJ);
+OLED		oled(OLED_RESET, OLED_DCJ);
 RTC_PCF8523	rtc;
 SdFat		sd;
 
@@ -269,38 +271,38 @@ printReading(struct Reading *r)
 void
 serialReading(struct Reading *r)
 {
-	SerialUSB << r->when.year;
-	SerialUSB << ",";
-	SerialUSB << r->when.month;
-	SerialUSB << ",";
-	SerialUSB << r->when.day;
-	SerialUSB << ",";
-	SerialUSB << r->when.hour;
-	SerialUSB << ",";
-	SerialUSB << r->when.minute;
-	SerialUSB << ",";
-	SerialUSB << r->when.second;
-	SerialUSB << ",";
-	SerialUSB << r->uptime;
-	SerialUSB << ",";
-	SerialUSB << r->hw;
-	SerialUSB << ",";
-	SerialUSB << r->temp;
-	SerialUSB << ",";
-	SerialUSB << r->calt;
-	SerialUSB << ",";
-	SerialUSB << r->cal;
-	SerialUSB << ",";
-	SerialUSB << r->hum;
-	SerialUSB << ",";
-	SerialUSB << r->press;
-	SerialUSB << ",";
-	SerialUSB << r->ccs811Status;
-	SerialUSB << ",";
-	SerialUSB << r->co2;
-	SerialUSB << ",";
-	SerialUSB << r->tvoc;
-	SerialUSB << "\n";
+	Serial << r->when.year;
+	Serial << ",";
+	Serial << r->when.month;
+	Serial << ",";
+	Serial << r->when.day;
+	Serial << ",";
+	Serial << r->when.hour;
+	Serial << ",";
+	Serial << r->when.minute;
+	Serial << ",";
+	Serial << r->when.second;
+	Serial << ",";
+	Serial << r->uptime;
+	Serial << ",";
+	Serial << r->hw;
+	Serial << ",";
+	Serial << r->temp;
+	Serial << ",";
+	Serial << r->calt;
+	Serial << ",";
+	Serial << r->cal;
+	Serial << ",";
+	Serial << r->hum;
+	Serial << ",";
+	Serial << r->press;
+	Serial << ",";
+	Serial << r->ccs811Status;
+	Serial << ",";
+	Serial << r->co2;
+	Serial << ",";
+	Serial << r->tvoc;
+	Serial << "\n";
 }
 
 
@@ -320,37 +322,37 @@ writeReading(struct Reading *r)
 		return false;
 	}
 
-	logfile << r->when.year;
+	logfile << String(r->when.year);
 	logfile << ",";
-	logfile << r->when.month;
+	logfile << String(r->when.month);
 	logfile << ",";
-	logfile << r->when.day;
+	logfile << String(r->when.day);
 	logfile << ",";
-	logfile << r->when.hour;
+	logfile << String(r->when.hour);
 	logfile << ",";
-	logfile << r->when.minute;
+	logfile << String(r->when.minute);
 	logfile << ",";
-	logfile << r->when.second;
+	logfile << String(r->when.second);
 	logfile << ",";
-	logfile << r->uptime;
+	logfile << String(r->uptime);
 	logfile << ",";
-	logfile << r->hw;
+	logfile << String(r->hw);
 	logfile << ",";
-	logfile << r->temp;
+	logfile << String(r->temp);
 	logfile << ",";
-	logfile << r->calt;
+	logfile << String(r->calt);
 	logfile << ",";
-	logfile << r->cal;
+	logfile << String(r->cal);
 	logfile << ",";
-	logfile << r->hum;
+	logfile << String(r->hum);
 	logfile << ",";
-	logfile << r->press;
+	logfile << String(r->press);
 	logfile << ",";
-	logfile << r->ccs811Status;
+	logfile << String(r->ccs811Status);
 	logfile << ",";
-	logfile << r->co2;
+	logfile << String(r->co2);
 	logfile << ",";
-	logfile << r->tvoc;
+	logfile << String(r->tvoc);
 	logfile << "\n";
 	logfile.close();
 	return true;
@@ -364,10 +366,12 @@ setup()
 	digitalWrite(LED_BUILTIN, HIGH); // Show we're awake
 
 	Serial.begin(9600);
+	while (!Serial) ;
 	Serial.println("SERIAL OK");
 
 	Wire.begin();
 	Wire.setClock(400000);
+	Serial.println("I2C->400kHz");
 	oled.begin();
 	Serial.println("OLED STARTED");
 
@@ -386,6 +390,7 @@ setup()
 		Serial.println("RTC offline");
 		while (1);
 	}
+	/*
 	else {
 		if (!rtc.initialized()) {
 			oled.clear(ALL);
@@ -397,6 +402,7 @@ setup()
 			while (1);
 		}
 	}
+	*/
 
 	if (!setupBME280()) {
 		oled.clear(ALL);
@@ -472,7 +478,9 @@ loop()
 	}
 
 	takeReading(&r);
-	writeReading(&r);
+	if (!writeReading(&r)) {
+		Serial.println("WR FAILED");
+	}
 	printReading(&r);
 	serialReading(&r);
 
