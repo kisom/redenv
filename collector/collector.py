@@ -56,6 +56,7 @@ def get_db():
     Collect the database credentials from the environment, and use that
     to set up a database.
     """
+    logging.info(f"attempting to connect to database host {os.getenv('DB_HOST')}")
     connstr = f"postgres://{os.getenv('DB_USER')}:"
     connstr += f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:5432/"
     connstr += f"{os.getenv('DB_NAME')}"
