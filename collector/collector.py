@@ -66,9 +66,7 @@ def get_db(config):
     to set up a database.
     """
     logging.info(f"attempting to connect to database host {config['DB_HOST']}")
-    connstr = f"postgres://{config['DB_USER']}:"
-    connstr += f"{config['DB_PASSWORD']}@{config['DB_HOST']}:5432/"
-    connstr += f"{config['DB_NAME']}"
+    connstr = f"postgres://{config['DB_USER']}:{config['DB_PASSWORD']}@{config['DB_HOST']}:5432/{config['DB_NAME']}"
     return Database(connstr)
 
 
