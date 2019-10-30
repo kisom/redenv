@@ -24,6 +24,15 @@ from sqlalchemy.ext.declarative import declarative_base
 TIMEZONE = pytz.timezone(zone="America/Los_Angeles")
 DATABASE = None
 
+def load_env(path=".env"):
+    """Load config from env file because systemd is dumb."""
+    config = {}
+    with open(path, 'rt') as env:
+        for line in env:
+            key, value = line.split('=', 1)
+            config[key] = value
+    return config
+
 
 def parse_timestamp(tstr):
     """
@@ -51,15 +60,15 @@ class Database:
         self.db.connect()
 
 
-def get_db():
+def get_db(config):
     """
     Collect the database credentials from the environment, and use that
     to set up a database.
     """
-    logging.info(f"attempting to connect to database host {os.getenv('DB_HOST')}")
-    connstr = f"postgres://{os.getenv('DB_USER')}:"
-    connstr += f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:5432/"
-    connstr += f"{os.getenv('DB_NAME')}"
+    logging.info(f"attempting to connect to database host {config['DB_HOST']}")
+    connstr = f"postgres://{config['DB_USER']}:"
+    connstr += f"{config['DB_PASSWORD']}@{config['DB_HOST']}:5432/"
+    connstr += f"{config['DB_NAME']}"
     return Database(connstr)
 
 
@@ -148,14 +157,14 @@ def uplink_callback(msg, _client):
     logging.info(f"stored record from {msg.dev_id}")
 
 
-def main(block=False):
+def main(config, block=False):
     """
     Set up a TTN pubsub connection and register a callback. If
     block is True, the function will enter into a sleeping
     infinite loop.
     """
-    app_id = os.getenv("TTN_APP_ID")
-    access_key = os.getenv("TTN_APP_ACCESS_KEY")
+    app_id = config["TTN_APP_ID"]
+    access_key = config["TTN_APP_ACCESS_KEY"]
     assert app_id is not None
     assert access_key is not None
     handler = ttn.HandlerClient(app_id, access_key)
@@ -186,6 +195,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="fls-collector(%(levelname)s):%(message)s", level=logging.INFO
     )
-    DATABASE = get_db()
+    CONFIG = load_env()
+    DATABASE = get_db(CONFIG)
     while True:
         main(block=True)
