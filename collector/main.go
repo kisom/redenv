@@ -67,7 +67,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page = fmt.Sprintf(`fls-collector/web v1.0.0
+	page := fmt.Sprintf(`fls-collector/web v1.0.0
 
 last reading at: %s
 `, time.Unix(timestamp, 0).Format(timeFormat))
