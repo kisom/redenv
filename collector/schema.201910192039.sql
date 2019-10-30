@@ -1,11 +1,29 @@
 BEGIN;
 
+CREATE TABLE uplinks (
+	id			UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	app_id			TEXT NOT NULL,
+	dev_id			TEXT NOT NULL,
+	hw_serial		TEXT NOT NULL,
+	port			INTEGER NOT NULL,
+	counter			INTEGER NOT NULL,
+	is_retry		BOOLEAN NOT NULL,
+	is_confirmed		BOOLEAN NOT NULL,
+	payload_raw		BYTEA NOT NULL,
+	uplink_time		INTEGER NOT NULL,
+	frequency		FLOAT NOT NULL,
+	modulation		TEXT NOT NULL DEFAULT 'simulated',
+	data_rate		TEXT NOT NULL DEFAULT 'simulated',
+	bit_rate		TEXT NOT NULL DEFAULT 'simulated',
+	unique(dev_id, hw_serial, payload_raw)
+);
+
 CREATE TABLE readings (
        -- RECORD HEADER
        id			UUID PRIMARY KEY DEFAULT gen_random_uuid(),
        received_at		INTEGER NOT NULL,
        device			TEXT NOT NULL,
-       payload			BYTEA NOT NULL,
+       uplink			UUID REFERENCES uplinks,
 
        -- PAYLOAD HEADER
        recorded_at		INTEGER NOT NULL,
@@ -25,8 +43,7 @@ CREATE TABLE readings (
        tvoc			INTEGER NOT NULL,
 
        -- solar cell
-       voltage			INTEGER NOT NULL,
-       unique(device, payload)
+       voltage			INTEGER NOT NULL
 );
 
 COMMIT;

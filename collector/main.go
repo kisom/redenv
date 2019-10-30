@@ -1,78 +1,80 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"database/sql"
+	"encoding/json"
+	"flag"
+	"io/ioutil"
+	"log"
+	"net/http"
 
-	ttnsdk "github.com/TheThingsNetwork/go-app-sdk"
-	ttnlog "github.com/TheThingsNetwork/go-utils/log"
-	"github.com/TheThingsNetwork/go-utils/log/apex"
+	"github.com/kisom/redenv/collector/ttn"
+	_ "github.com/lib/pq"
 )
 
-const (
-	sdkClientName = "fls-collector"
-	//sdkClientVersion = "1.0.0"
-	sdkClientVersion = "2.0.5"
-	handlerAddress   = "us-west.thethings.network:1904"
+var (
+	config *Config
+	db     *sql.DB
 )
+
+const timeFormat = "2006-01-02 15:04:05 MST"
+
+func httpError(w http.ResponseWriter, err error, code int) {
+	log.Printf("[ERROR] %s", err)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+	return
+
+}
+
+func redenvCollector(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+	}
+
+	var uplink ttn.Uplink
+	err = json.Unmarshal(body, &uplink)
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	reading, err := uplink.ToReading()
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	err = StoreUplink(db, reading, uplink)
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("reading from %s @ %s stored", uplink.DevID,
+		reading.When.Format(timeFormat))
+}
 
 func main() {
-	log := apex.Stdout() // We use a cli logger at Stdout
-	log.MustParseLevel("debug")
-	ttnlog.Set(log) // Set the logger as default for TTN
+	addr := "localhost:8006"
+	configFile := "collector.conf"
+	flag.StringVar(&addr, "a", addr, "`address` to listen on")
+	flag.StringVar(&configFile, "f", configFile, "`path` to configuration file")
+	flag.Parse()
 
-	// We get the application ID and application access key from the environment
-	appID := os.Getenv("TTN_APP_ID")
-	appAccessKey := os.Getenv("TTN_APP_ACCESS_KEY")
-
-	config := ttnsdk.NewCommunityConfig(sdkClientName)
-	config.ClientVersion = sdkClientVersion
-	config.HandlerAddress = handlerAddress
-
-	log.Info("setting up client")
-	// Create a new SDK client for the application
-	client := config.NewClient(appID, appAccessKey)
-
-	// Make sure the client is closed before the function returns
-	// In your application, you should call this before the application shuts down
-	defer client.Close()
-
-	log.Info("Starting pubsub client")
-
-	// Start Publish/Subscribe client (MQTT)
-	pubsub, err := client.PubSub()
+	var err error
+	config, err = LoadConfig(configFile)
 	if err != nil {
-		log.WithError(err).Fatal("fls-collector: could not get application pub/sub")
+		log.Fatal(err)
 	}
 
-	// Make sure the pubsub client is closed before the function returns
-	// In your application, you should call this before the application shuts down
-	defer pubsub.Close()
-
-	log.Info("starting pubsub for all clients")
-	// Get a publish/subscribe client for all devices
-	allDevicesPubSub := pubsub.AllDevices()
-
-	// Subscribe to events
-	events, err := allDevicesPubSub.SubscribeEvents()
+	db, err = sql.Open("postgres", config.Database.ConnStr())
 	if err != nil {
-		log.WithError(err).Fatal("fls-collector: could not subscribe to events")
+		log.Fatal(err)
 	}
-	log.Debug("After this point, the program won't show anything until we receive an application event.")
-	for event := range events {
-		log.WithFields(ttnlog.Fields{
-			"devID":     event.DevID,
-			"eventType": event.Event,
-		}).Info("my-amazing-app: received event")
-		if event.Data != nil {
-			fmt.Println(event.Data)
-		}
-		break // normally you wouldn't do this
-	}
+	defer db.Close()
 
-	// Unsubscribe from events
-	err = allDevicesPubSub.UnsubscribeEvents()
-	if err != nil {
-		log.WithError(err).Fatal("fls-collector: could not unsubscribe from events")
-	}
+	http.HandleFunc("/redenv/collector", redenvCollector)
+	log.Printf("listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }

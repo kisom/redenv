@@ -1,4 +1,4 @@
-package main
+package reading
 
 import (
 	"bytes"
@@ -53,6 +53,11 @@ const (
 )
 
 type Reading struct {
+	ID         string
+	ReceivedAt time.Time
+	Device     string
+	Uplink     string
+
 	When     time.Time
 	Hardware uint8
 	Uptime   uint32
@@ -68,11 +73,11 @@ type Reading struct {
 	CO2          int32
 	TVOC         int32
 
-	voltage uint8
+	Voltage uint8
 }
 
-func (r Reading) Voltage() float32 {
-	return float32(r.voltage) / 10.0
+func (r Reading) VoltageF() float32 {
+	return float32(r.Voltage) / 10.0
 }
 
 func (r Reading) HardwareAsString() string {
@@ -168,7 +173,7 @@ func (r *Reading) Unmarshal(data []byte) error {
 		return err
 	}
 
-	if err := read(&r.voltage); err != nil {
+	if err := read(&r.Voltage); err != nil {
 		return err
 	}
 

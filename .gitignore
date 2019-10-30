@@ -1,3 +1,4 @@
 */.pio
 */include/ttn.h
 collector/.env
+collector/*.conf

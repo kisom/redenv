@@ -1,4 +1,4 @@
-package main
+package reading
 
 import (
 	"fmt"
@@ -47,12 +47,12 @@ func TestUnmarshal0(t *testing.T) {
 	assert.BoolT(t, fleq(reading.Pressure, 101358.0), "pressure")
 	assert.BoolT(t, reading.CO2 == -1, "CO2")
 	assert.BoolT(t, reading.TVOC == -1, "TVOC")
-	assert.BoolT(t, reading.voltage == 204, "voltage")
+	assert.BoolT(t, reading.Voltage == 204, "voltage")
 	assert.BoolT(t, reading.CCS811Status == 255, "CCS811 status")
 	assert.BoolT(t, reading.CCS811Error == ErrCCS811Unknown, "CCS811 error")
 
 	assert.BoolT(t, reading.HardwareAsString() == "BME280,RTC,SD", "hardware string")
-	assert.BoolT(t, fleq(reading.Voltage(), 20.4), "voltage float", fmt.Sprintf("%f", reading.Voltage()))
+	assert.BoolT(t, fleq(reading.VoltageF(), 20.4), "voltage float", fmt.Sprintf("%f", reading.VoltageF()))
 }
 
 func TestUnmarshal1(t *testing.T) {
@@ -81,10 +81,10 @@ func TestUnmarshal1(t *testing.T) {
 	assert.BoolT(t, fleq(reading.Pressure, 101623.52), "pressure")
 	assert.BoolT(t, reading.CO2 == 575, "CO2")
 	assert.BoolT(t, reading.TVOC == 26, "TVOC")
-	assert.BoolT(t, reading.voltage == 253, "voltage")
+	assert.BoolT(t, reading.Voltage == 253, "voltage")
 	assert.BoolT(t, reading.CCS811Status == 0, "CCS811 status")
 	assert.NoErrorT(t, reading.CCS811Error)
 
 	assert.BoolT(t, reading.HardwareAsString() == "BME280,CCS811,RTC,SD", "hardware string")
-	assert.BoolT(t, fleq(reading.Voltage(), 25.3), "voltage float", fmt.Sprintf("%f", reading.Voltage()))
+	assert.BoolT(t, fleq(reading.VoltageF(), 25.3), "voltage float", fmt.Sprintf("%f", reading.VoltageF()))
 }
