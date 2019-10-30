@@ -10,6 +10,8 @@ import struct
 import sys
 
 
+CCS811_STATUS =["OK", "invalid ID", "I2C error", "internal error", "generic error"]
+
 class Reading:
     __slots__ = [
         "when",
@@ -58,9 +60,9 @@ class Reading:
         return hw
 
     def ccs811_status_str(self):
-        return ["OK", "invalid ID", "I2C error", "internal error", "generic error"][
-            self.ccs811_status
-        ]
+        if self.ccs811_status >= len(CCS811_STATUS):
+            return 'unknown'
+        return CCS811_STATUS[self.ccs811_status]
 
     def __str__(self):
         return f"""Timestamp: {self.when}
@@ -84,7 +86,7 @@ def unpack(data):
 
 
 def translate(data):
-    print(unpack(data))
+    print(Reading(unpack(data)))
 
 
 def main():
