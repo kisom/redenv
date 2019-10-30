@@ -1,1 +1,7 @@
-the ttn go sdk doesn't actually work
+the ttn go and python sdks don't seem to actually work, so i switched
+to webhooks, which is kind of dumb but this is the world we live in.
+
+goal: move this to an rpi
+goal: move off TTN
+
+todo: stash gateway information
