@@ -93,6 +93,7 @@ func main() {
 	}
 	defer db.Close()
 
+	http.HandleFunc("/", index)
 	http.HandleFunc("/redenv/collector", redenvCollector)
 	log.Printf("listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
