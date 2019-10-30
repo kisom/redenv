@@ -29,7 +29,7 @@ def load_env(path=".env"):
     config = {}
     with open(path, 'rt') as env:
         for line in env:
-            key, value = line.split('=', 1)
+            key, value = line.strip().split('=', 1)
             config[key] = value
     return config
 
@@ -196,4 +196,4 @@ if __name__ == "__main__":
     CONFIG = load_env()
     DATABASE = get_db(CONFIG)
     while True:
-        main(block=True)
+        main(CONFIG, block=True)
