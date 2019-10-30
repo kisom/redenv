@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/kisom/redenv/collector/ttn"
 	_ "github.com/lib/pq"
@@ -53,6 +55,23 @@ func redenvCollector(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("reading from %s @ %s stored", uplink.DevID,
 		reading.When.Format(timeFormat))
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	var timestamp int64
+
+	row := db.QueryRow(`select recorded_at from readings order by recorded_at desc limit 1`)
+	err := row.Scan(&timestamp)
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	page = fmt.Sprintf(`fls-collector/web v1.0.0
+
+last reading at: %s
+`, time.Unix(timestamp, 0).Format(timeFormat))
+	w.Write([]byte(page))
 }
 
 func main() {
