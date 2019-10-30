@@ -167,6 +167,7 @@ def main(config, block=False):
     assert access_key is not None
     handler = ttn.HandlerClient(app_id, access_key)
 
+    logging.info(f"setting up client for {app_id}")
     mqtt_client = handler.data()
     mqtt_client.set_uplink_callback(uplink_callback)
 
