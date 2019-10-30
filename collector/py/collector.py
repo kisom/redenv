@@ -104,7 +104,7 @@ class Reading(declarative_base()):
     voltage = Column(Integer, nullable=False)
 
 
-def uplink_callback(msg, _client):
+def uplink_callback(msg, client):
     """
     When a new message comes in from a node, do some data prep and
     store the record in the database.
