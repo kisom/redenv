@@ -197,4 +197,6 @@ if __name__ == "__main__":
     CONFIG = load_env()
     DATABASE = get_db(CONFIG)
     while True:
-        main(CONFIG, block=True)
+        if not main(CONFIG, block=True):
+            logging.info("exiting")
+            break
