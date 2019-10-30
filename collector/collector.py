@@ -155,6 +155,8 @@ def main(block=False):
     """
     app_id = os.getenv("TTN_APP_ID")
     access_key = os.getenv("TTN_APP_ACCESS_KEY")
+    assert app_id is not None
+    assert access_key is not None
     handler = ttn.HandlerClient(app_id, access_key)
 
     mqtt_client = handler.data()
