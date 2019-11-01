@@ -57,20 +57,32 @@ func redenvCollector(w http.ResponseWriter, r *http.Request) {
 		reading.When.Format(timeFormat))
 }
 
-func index(w http.ResponseWriter, r *http.Request) {
+func index(w http.ResponseWriter, req *http.Request) {
+	u := &ttn.Uplink{}
 	var timestamp int64
 
-	row := db.QueryRow(`select recorded_at from readings order by recorded_at desc limit 1`)
-	err := row.Scan(&timestamp)
+	row := db.QueryRow(`SELECT
+	app_id, dev_id, hw_serial, port, counter,
+	is_retry, is_confirmed, payload_raw, uplink_time,
+	frequency, modulation, data_rate, bit_rate
+FROM uplinks
+ORDER BY uplink_time DESC
+LIMIT 1`)
+	err := row.Scan(
+		&u.AppID, &u.DevID, &u.HardwareSerial, &u.Port,
+		&u.Counter, &u.IsRetry, &u.Confirmed, &u.PayloadRaw,
+		&timestamp, &u.Metadata.Frequency, &u.Metadata.Modulation,
+		&u.Metadata.DataRate, &u.Metadata.BitRate,
+	)
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-
+	u.Metadata.Time = time.Unix(timestamp, 0).Format(timeFormat)
 	page := fmt.Sprintf(`fls-collector/web v1.0.0
 
-last reading at: %s
-`, time.Unix(timestamp, 0).Format(timeFormat))
+LATEST UPLINK
+%s`, u)
 	w.Write([]byte(page))
 }
 

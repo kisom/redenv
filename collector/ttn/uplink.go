@@ -2,9 +2,11 @@ package ttn
 
 import (
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/kisom/redenv/collector/reading"
+	"github.com/kisom/redenv/collector/util"
 )
 
 type Uplink struct {
@@ -37,8 +39,64 @@ func (u Uplink) ToReading() (*reading.Reading, error) {
 	}
 
 	r.ReceivedAt, err = time.Parse(time.RFC3339, u.Metadata.Time)
+	if err != nil {
+		// When getting uplinks from the database, the time is
+		// stored in a slightly saner format.
+		r.ReceivedAt, err = time.Parse(util.TimeFormat, u.Metadata.Time)
+		if err != nil {
+			return nil, err
+		}
+	}
 	err = r.Unmarshal(payload)
 	return r, err
+}
+
+func (u Uplink) String() string {
+	r := &reading.Reading{}
+	r.Device = u.DevID
+
+	payload, err := base64.StdEncoding.DecodeString(u.PayloadRaw)
+	if err != nil {
+		// things should have been validated by here, and if
+		// you haven't then the app deserves to crash
+		panic(err)
+	}
+
+	r.ReceivedAt, err = time.Parse(time.RFC3339, u.Metadata.Time)
+	if err != nil {
+		// When getting uplinks from the database, the time is
+		// stored in a slightly saner format.
+		r.ReceivedAt, err = time.Parse(util.TimeFormat, u.Metadata.Time)
+		if err != nil {
+			// things should have been validated by here,
+			// and if you haven't then the app deserves to
+			// crash
+			panic(err)
+		}
+	}
+	err = r.Unmarshal(payload)
+	if err != nil {
+		// things should have been validated by here, and if
+		// you haven't then the app deserves to crash
+		panic(err)
+	}
+
+	return fmt.Sprintf(`Uplink[%s] from %s[%s] @ %s
+	Port: %d
+	Counter: %d
+	Retry? %s
+	Confirmed? %s
+	Frequency: %0.3f
+	Modulation: %s
+	Data rate: %s
+	Bit rate: %s
+Reading:
+%s
+
+`, u.AppID, u.DevID, u.HardwareSerial, u.Metadata.Time, u.Port,
+		u.Counter, util.YOrN(u.IsRetry), util.YOrN(u.Confirmed),
+		u.Metadata.Frequency, u.Metadata.Modulation,
+		u.Metadata.DataRate, u.Metadata.BitRate, r)
 }
 
 /*

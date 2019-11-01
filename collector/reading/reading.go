@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
+
+	"github.com/kisom/redenv/collector/util"
 )
 
 const ReadingSize = 39
@@ -45,6 +48,23 @@ func statusToCCS811Error(status uint8) error {
 	}
 }
 
+func statusToCCS811String(status uint8) string {
+	switch status {
+	case 0:
+		return "OK"
+	case 1:
+		return "invalid ID"
+	case 2:
+		return "I2C error"
+	case 3:
+		return "internal error"
+	case 4:
+		return "generic error"
+	default:
+		return "unknown error or sensor is off"
+	}
+}
+
 const (
 	HardwareBME280 uint8 = 1 << iota
 	HardwareCCS811
@@ -74,6 +94,43 @@ type Reading struct {
 	TVOC         int32
 
 	Voltage uint8
+}
+
+func ccs811Reading(v int32, unit string) string {
+	if v == -1 {
+		return "not recorded"
+	}
+	return fmt.Sprintf("%d %s", v, unit)
+}
+
+func (r Reading) String() string {
+	return fmt.Sprintf(`	Recorded: %s
+	Hardware: %s
+	Uptime: %ds
+	Temperature: %0.2f°C
+	Temperature calibration: %0.2f°C
+	Temperature calibrated? %s
+	Humidity: %0.2f
+	Barometric pressure: %0.4f kPa
+	CCS811 status: %s
+	CO2: %s
+	TVOC: %s
+	Voltage: %0.1f
+`,
+		r.When.Format(util.TimeFormat),
+		r.HardwareAsString(),
+		r.Uptime,
+		r.Temperature,
+		r.TemperatureCalibration,
+		util.YOrN(r.TemperatureCalibrated),
+		r.Humidity,
+		r.Pressure/1000.0,
+		statusToCCS811String(r.CCS811Status),
+		ccs811Reading(r.CO2, "ppm"),
+		ccs811Reading(r.TVOC, "ppb"),
+		r.VoltageF(),
+	)
+
 }
 
 func (r Reading) VoltageF() float32 {
