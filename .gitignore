@@ -1,4 +1,5 @@
 */.pio
 */include/ttn.h
+node-arduino/ttn.h
 collector/.env
 collector/*.conf

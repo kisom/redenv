@@ -1,0 +1,3 @@
++ look into storing session state
+  + c.f. https://www.thethingsnetwork.org/forum/t/deep-sleep-and-otaa-m328p-lmic/27199/4
+  + I don't think CPU deep sleep would cause peripherals to die. Worth looking into.
