@@ -104,9 +104,10 @@ func ccs811Reading(v int32, unit string) string {
 }
 
 func (r Reading) String() string {
+	uptime := time.Duration(r.Uptime) * time.Second
 	return fmt.Sprintf(`	Recorded: %s
 	Hardware: %s
-	Uptime: %ds
+	Uptime: %s
 	Temperature: %0.2f°C
 	Temperature calibration: %0.2f°C
 	Temperature calibrated? %s
@@ -119,7 +120,7 @@ func (r Reading) String() string {
 `,
 		r.When.Format(util.TimeFormat),
 		r.HardwareAsString(),
-		r.Uptime,
+		uptime,
 		r.Temperature,
 		r.TemperatureCalibration,
 		util.YOrN(r.TemperatureCalibrated),
