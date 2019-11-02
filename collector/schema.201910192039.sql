@@ -9,7 +9,7 @@ CREATE TABLE uplinks (
 	counter			INTEGER NOT NULL,
 	is_retry		BOOLEAN NOT NULL,
 	is_confirmed		BOOLEAN NOT NULL,
-	payload_raw		BYTEA NOT NULL,
+	payload_raw		TEXT NOT NULL,
 	uplink_time		INTEGER NOT NULL,
 	frequency		FLOAT NOT NULL,
 	modulation		TEXT NOT NULL DEFAULT 'simulated',
