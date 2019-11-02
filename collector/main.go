@@ -85,6 +85,7 @@ LIMIT 1`)
 	}
 	u.Metadata.Time = time.Unix(timestamp, 0).Format(timeFormat)
 	page := fmt.Sprintf(`fls-collector/web v1.0.0
+Node location: 37.823°N 122.284°W (West Oakland, California, United States)
 
 LATEST UPLINK
 %s`, u)
