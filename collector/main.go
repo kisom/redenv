@@ -25,7 +25,6 @@ func httpError(w http.ResponseWriter, err error, code int) {
 	log.Printf("[ERROR] %s", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	return
-
 }
 
 func redenvCollector(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +33,18 @@ func redenvCollector(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 	}
 
-	var uplink ttn.Uplink
-	err = json.Unmarshal(body, &uplink)
+	uplink := &ttn.Uplink{}
+	err = json.Unmarshal(body, uplink)
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("received uplink from %s (%s) @ %s: %s",
+		uplink.DevID,
+		uplink.HardwareSerial,
+		uplink.Metadata.Time,
+		uplink.PayloadRaw)
 
 	reading, err := uplink.ToReading()
 	if err != nil {
@@ -106,7 +111,7 @@ func main() {
 	defer db.Close()
 
 	http.HandleFunc("/", index)
-	http.HandleFunc("/redenv/collector", redenvCollector)
+	http.HandleFunc("/fls/collector/uplink", redenvCollector)
 	log.Printf("listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }

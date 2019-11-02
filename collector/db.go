@@ -44,7 +44,7 @@ var (
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 )
 
-func StoreUplink(db *sql.DB, r *reading.Reading, u ttn.Uplink) error {
+func StoreUplink(db *sql.DB, r *reading.Reading, u *ttn.Uplink) error {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return err
