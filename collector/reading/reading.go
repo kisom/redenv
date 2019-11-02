@@ -115,7 +115,7 @@ func (r Reading) String() string {
 	CCS811 status: %s
 	CO2: %s
 	TVOC: %s
-	Voltage: %0.1f
+	Voltage: %0.1fV (note voltages over 10V may not be accurate)
 `,
 		r.When.Format(util.TimeFormat),
 		r.HardwareAsString(),
