@@ -135,7 +135,7 @@ func (r Reading) String() string {
 }
 
 func (r Reading) VoltageF() float32 {
-	return float32(r.Voltage) / 10.0
+	return float32(r.Voltage)
 }
 
 func (r Reading) HardwareAsString() string {
