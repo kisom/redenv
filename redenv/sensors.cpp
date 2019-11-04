@@ -1,5 +1,4 @@
-#include <Arduino.h>
-#include <SdFat.h>
+#include <Adafruit_GPS.h>
 #include <SparkFunBME280.h>
 #include <SparkFunCCS811.h>
 #include "sensors.h"
@@ -10,44 +9,57 @@
 #define CCS811_RESET	A4
 #define PVPIN		A0	/* middle pin of the solar cell trimpot tap */
 #define READING_SIZE	39	/* how big is the reading struct in bytes */
-#define SD_CS		10	/* from Adafruit docs */
+
+
+
+#ifndef GPS_MODE
+#define GPS_MODE	PMTK_SET_NMEA_OUTPUT_RMCGGA
+#endif // GPS_MODE
+
+#ifndef GPS_UPDATE_FREQ
+#define GPS_UPDATE_FREQ	PMTK_SET_NMEA_UPDATE_1HZ
+#endif // GPS_UPDATE_FREQ
+
+#ifndef GPS_BAUDRATE
+#define GPS_BAUDRATE	9600
+#endif // GPS_BAUDRATE
 
 
 static BME280		bme280;
 static CCS811		ccs811(CCS811_ADDR);
-SdFat			sd;
+static Adafruit_GPS	gps(&Serial1);
 
 
-uint32_t		startupDTS;
+static uint32_t		startupDTS;
+static bool		gpsFix = false;
 
 
 /*
- * The BME280 can't compensate for the heat produced by the CCS811, so
- * it needs to be calibrated. These variables control this.
- *
- * TODO: figure out how to preserve these values through a soft (no
- * loss of power) reset.
- *
- * When the BME280 starts, take a reference temperature. This will be
- * used later to calibrate the temperature from the CCS811 starting up.
- * This presumes (probably wrongly) that the temperature will remain
- * fairly constant through the 20 minutes it takes for the CCS811 to power up.
- * This is only done once, at startup, so that sort of helps.
- */
+   The BME280 can't compensate for the heat produced by the CCS811, so
+   it needs to be calibrated. These variables control this.
+
+   TODO: figure out how to preserve these values through a soft (no
+   loss of power) reset.
+
+   When the BME280 starts, take a reference temperature. This will be
+   used later to calibrate the temperature from the CCS811 starting up.
+   This presumes (probably wrongly) that the temperature will remain
+   fairly constant through the 20 minutes it takes for the CCS811 to power up.
+   This is only done once, at startup, so that sort of helps.
+*/
 static float	coldStartTemperature = 0.0;
 static float	tempCal = 0.0;
 static bool	bme280Calibrated = false;
 
 
 /*
- * availableHardware is used to indicate which subsystems are alive;
- * this allows reporting of broken subsystems.
- */
+   availableHardware is used to indicate which subsystems are alive;
+   this allows reporting of broken subsystems.
+*/
 static uint8_t		availableHardware = 0;
 #define HW_BME280	1
 #define HW_CCS811	2
 #define HW_RTC		4
-#define HW_SD		8
 
 
 static void
@@ -100,13 +112,22 @@ SOS()
 }
 
 
+static uint32_t
+gpsUnixTime()
+{
+	return DateTime(gps.year+2000, gps.month, gps.day, gps.hour,
+			gps.minute, gps.seconds).unixtime();
+}
+
+
 uint8_t
 getVoltage()
 {
+	float	voltage_f;
 	/*
-	 * First, take the average of 10 readings to account
-	 * for small-scale voltage fluctuations.
-	 */
+	   First, take the average of 10 readings to account
+	   for small-scale voltage fluctuations.
+	   */
 	int	voltage = analogRead(PVPIN);
 
 	for (auto i = 0; i < 9; i++) {
@@ -114,44 +135,37 @@ getVoltage()
 		delayMicroseconds(11);
 	}
 	voltage /= 10;
+	voltage_f = static_cast<float>(voltage);
 
 	// The trimpot is set halfway, which divides the voltage in half.
 	// Then, the voltage is divided by 10 again to scale it to a
 	// uint8_t. So, 8.4V should be a value of 84.
-	voltage *= 2;
-	voltage /= 10;
-	return (uint8_t)voltage;
-}
-
-
-static void
-resetCCS811()
-{
-	digitalWrite(CCS811_RESET, LOW);
-	delay(100);
+	voltage_f *= 3.7;
+	voltage_f *= 10;
+	return (uint8_t)voltage_f;
 }
 
 
 // This can be unpacked with the following Python struct format:
 // 	'<HBBBBBBIffffiiBBB'
 struct Reading {
-        uint16_t        year;   
-        uint8_t         month;
-        uint8_t         day;
-        uint8_t         hour;
-        uint8_t         minute;
-        uint8_t         second;
-        uint8_t         hw;     // available hardware
-        uint32_t        uptime;
-        float           temp;   // °C
-        float           calt;   // temperature calibration value
-        float           hum;    // % humidity
-        float           press;  // Pa
-        int             co2;    // ppb
-        int             tvoc;   // ppb
-        uint8_t         voltage;
-        uint8_t         ccs811Status;
-        uint8_t         cal;    // is temperature calibrated?
+	uint16_t        year;
+	uint8_t         month;
+	uint8_t         day;
+	uint8_t         hour;
+	uint8_t         minute;
+	uint8_t         second;
+	uint8_t         hw;     // available hardware
+	uint32_t        uptime;
+	float           temp;   // °C
+	float           calt;   // temperature calibration value
+	float           hum;    // % humidity
+	float           press;  // Pa
+	int             co2;    // ppb
+	int             tvoc;   // ppb
+	uint8_t         voltage;
+	uint8_t         ccs811Status;
+	uint8_t         cal;    // is temperature calibrated?
 };
 
 
@@ -159,14 +173,12 @@ struct Reading {
 static void
 now(struct Reading *r)
 {
-        DateTime        when = rtc.now();
-
-        r->year = when.year();
-        r->month = when.month();
-        r->day = when.day();
-        r->hour = when.hour();
-        r->minute = when.minute();
-        r->second = when.second();
+	r->year = gps.year+2000;
+	r->month = gps.month;
+	r->day = gps.day;
+	r->hour = gps.hour;
+	r->minute = gps.minute;
+	r->second = gps.seconds;
 }
 
 
@@ -235,9 +247,12 @@ void
 takeReading(struct Reading *r)
 {
 	now(r);
-	r->uptime = rtc.now().unixtime() - startupDTS;
+	lastReadingTime = gpsUnixTime();
+	r->uptime = lastReadingTime - startupDTS;
 	r->hw = availableHardware;
 	r->voltage = getVoltage();
+
+	yield();
 
 	if ((!bme280Calibrated) && (r->uptime >= 1200)) {
 		auto ccs811Status = ccs811.checkForStatusError();
@@ -254,6 +269,8 @@ takeReading(struct Reading *r)
 		}
 	}
 
+	yield();
+
 	if ((r->hw & HW_BME280) != 0) {
 		r->temp = bme280.readTempC();
 		r->cal = bme280Calibrated ? 1 : 0;
@@ -264,6 +281,8 @@ takeReading(struct Reading *r)
 		r->press = bme280.readFloatPressure();
 		r->hum = bme280.readFloatHumidity();
 	}
+
+	yield();
 
 	if ((r->hw & HW_CCS811) != 0) {
 		if ((r->hw & HW_BME280) != 0) {
@@ -294,52 +313,39 @@ takeReading(struct Reading *r)
 
 
 bool
-writeReading(struct Reading *r)
+GPSUpdate()
 {
-	DateTime	now = rtc.now();
-	char		path[17];
-	char		buf[192];
-
-	if ((availableHardware & HW_SD) == 0) {
-		return false;
+	gps.read();
+	if (gps.newNMEAreceived()) {
+		gps.parse(gps.lastNMEA());
 	}
+	return gps.fix;
+}
 
-	snprintf(path, 16, "env_%04d%02d%02d.csv", now.year(), now.month(), now.day());
-	FatFile logfile(path, O_WRONLY|O_APPEND);
-	if (!logfile.isOpen()) {
-		return false;
-	}
 
-	int len = snprintf(buf, 191, "%04d,%02d,%02d,%02d,%02d,%02d,%u,%d,%f,%f,%d,%f,%f,%d,%d,%d\r\n",
-			r->year, r->month, r->day,
-			r->hour, r->minute, r->second,
-			r->uptime, r->hw,
-			r->temp, r->calt, r->cal, r->hum, r->press,
-			r->ccs811Status, r->co2, r->tvoc);
-	Serial.print(buf);
-	logfile.write((const void *)buf, (size_t)len);
-	logfile.close();
-	return true;
+bool
+GPSWaitForFix()
+{
+	while (!GPSUpdate());
 }
 
 
 bool
 SensorInit()
 {
-	if (!rtc.begin()) {
-		Serial.println(F("RTC: FAILED TO START"));
-		SOS();
-	}
+	gps.begin(GPS_BAUDRATE);
+	gps.sendCommand(GPS_MODE);
+	gps.sendCommand(GPS_UPDATE_FREQ);
+#ifndef GPS_NO_ANTENNA_UPDATES
+	gps.sendCommand(PGCMD_ANTENNA);
+#endif // GPS_NO_ANTENNA_UPDATES
+	GPSWaitForFix();
 
-	if (!rtc.initialized()) {
-		Serial.println(F("RTC: NOT INITIALISED"));
-		SOS();
-	}
-	startupDTS = rtc.now().unixtime();
+	startupDTS = gpsUnixTime();
 	availableHardware |= HW_RTC;
 
 	// Pull the CCS811 low while we do other things to give it a
-	// good reset. It requires a minimum reset pulse length of 20μs 
+	// good reset. It requires a minimum reset pulse length of 20μs
 	// to reset; the I2C communications in the BME280 setup will
 	// more than cover this.
 	pinMode(CCS811_RESET, OUTPUT);
@@ -353,7 +359,7 @@ SensorInit()
 
 	// Let the CCS811 fly free!
 	digitalWrite(CCS811_RESET, HIGH);
-        auto ccs811Status = ccs811.begin();
+	auto ccs811Status = ccs811.begin();
 	if (ccs811Status == CCS811Core::SENSOR_SUCCESS) {
 		delay(100);
 		ccs811.setDriveMode(0);
@@ -363,13 +369,6 @@ SensorInit()
 		SOS();
 	}
 
-	if (sd.begin(SD_CS, SD_SCK_MHZ(50))) {
-		availableHardware |= HW_SD;
-	}
-	else {
-		Serial.println("SD FAIL");
-		SOS();
-	}	
 
 	Serial.print("READING SIZE: ");
 	Serial.println(sizeof(struct Reading), DEC);
@@ -385,6 +384,6 @@ RecordMeasurement(uint8_t *buf)
 	struct Reading	r;
 
 	takeReading(&r);
-	writeReading(&r);
 	packReading(&r, buf);
 }
+
