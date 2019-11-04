@@ -245,18 +245,6 @@ func (r *Reading) Unmarshal(data []byte) error {
 		return err
 	}
 
-	var fix uint8
-	if err := read(&fix); err != nil {
-		return err
-	}
-	if fix == 1 {
-		r.Fix = true
-	}
-
-	if err := read(&r.Sats); err != nil {
-		return err
-	}
-
 	if err := read(&r.CCS811Status); err != nil {
 		return err
 	}
@@ -267,6 +255,18 @@ func (r *Reading) Unmarshal(data []byte) error {
 
 	if calibrated == 1 {
 		r.TemperatureCalibrated = true
+	}
+
+	var fix uint8
+	if err := read(&fix); err != nil {
+		return err
+	}
+	if fix == 1 {
+		r.Fix = true
+	}
+
+	if err := read(&r.Sats); err != nil {
+		return err
 	}
 
 	r.CCS811Error = statusToCCS811Error(r.CCS811Status)
