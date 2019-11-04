@@ -24,11 +24,12 @@ func init() {
 }
 
 var (
-	ErrCCS811ID       = errors.New("ccs811: invalid ID")
-	ErrCCS811I2C      = errors.New("ccs811: I2C error")
-	ErrCCS811Internal = errors.New("ccs811: internal error")
-	ErrCCS811Generic  = errors.New("ccs811: generic error")
-	ErrCCS811Unknown  = errors.New("ccs811: unknown error")
+	ErrCCS811ID            = errors.New("ccs811: invalid ID")
+	ErrCCS811I2C           = errors.New("ccs811: I2C error")
+	ErrCCS811Internal      = errors.New("ccs811: internal error")
+	ErrCCS811Generic       = errors.New("ccs811: generic error")
+	ErrCCS811NotCalibrated = errors.New("ccs811: not calibrated")
+	ErrCCS811Unknown       = errors.New("ccs811: unknown error")
 )
 
 func statusToCCS811Error(status uint8) error {
@@ -43,6 +44,8 @@ func statusToCCS811Error(status uint8) error {
 		return ErrCCS811Internal
 	case 4:
 		return ErrCCS811Generic
+	case 255:
+		return ErrCCS811NotCalibrated
 	default:
 		return ErrCCS811Unknown
 	}

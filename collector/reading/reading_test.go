@@ -50,7 +50,7 @@ func TestUnmarshal0(t *testing.T) {
 	assert.BoolT(t, reading.TVOC == -1, "TVOC")
 	assert.BoolT(t, reading.Voltage == 204, "voltage")
 	assert.BoolT(t, reading.CCS811Status == 255, "CCS811 status")
-	assert.BoolT(t, reading.CCS811Error == ErrCCS811Unknown, "CCS811 error")
+	assert.BoolT(t, reading.CCS811Error == ErrCCS811NotCalibrated, "CCS811 error")
 	assert.BoolT(t, !reading.Fix, "GPS fix")
 	assert.BoolT(t, reading.Sats == 0, "GPS sats")
 
@@ -93,4 +93,41 @@ func TestUnmarshal1(t *testing.T) {
 
 	assert.BoolT(t, reading.HardwareAsString() == "BME280,CCS811,RTC,SD", "hardware string")
 	assert.BoolT(t, fleq(reading.VoltageF(), 2.53), "voltage float", fmt.Sprintf("%f", reading.VoltageF()))
+}
+
+func TestUnmarshal2(t *testing.T) {
+	var data = []byte{
+		0xE3, 0x07, 0x0B, 0x04, 0x06, 0x19, 0x09, 0x13,
+		0xFE, 0x06, 0x00, 0x00, 0x00, 0x00, 0xBC, 0x41,
+		0x67, 0x66, 0x2A, 0xC1, 0x00, 0xCD, 0xB2, 0x42,
+		0xB3, 0x84, 0xC6, 0x47, 0x48, 0x08, 0x00, 0x00,
+		0x06, 0x01, 0x00, 0x00, 0x8C, 0x00, 0x01, 0x01,
+		0x07,
+	}
+
+	assert.BoolT(t, len(data) == ReadingSize, "invalid data length")
+
+	var reading = &Reading{}
+	err := reading.Unmarshal(data)
+	assert.NoErrorT(t, err)
+
+	expectedDate := time.Date(2019, 11, 04, 06, 25, 9, 0, time.UTC)
+	assert.BoolT(t, reading.When.Equal(expectedDate), "timestamp")
+	assert.BoolT(t, reading.Hardware == 19, "hardware")
+	assert.BoolT(t, reading.Uptime == 1790, "uptime")
+	assert.BoolT(t, fleq(reading.Temperature, 23.50), "temperature")
+	assert.BoolT(t, fleq(reading.TemperatureCalibration, -10.7), "temperature calibration")
+	assert.BoolT(t, reading.TemperatureCalibrated, "temperature calibrated")
+	assert.BoolT(t, fleq(reading.Humidity, 89.4), "humidity")
+	assert.BoolT(t, fleq(reading.Pressure, 101641.4), "pressure")
+	assert.BoolT(t, reading.CO2 == 2120, "CO2")
+	assert.BoolT(t, reading.TVOC == 262, "TVOC")
+	assert.BoolT(t, reading.Voltage == 140, "voltage")
+	assert.BoolT(t, reading.CCS811Status == 0, "CCS811 status")
+	assert.NoErrorT(t, reading.CCS811Error)
+	assert.BoolT(t, reading.Fix, "GPS fix")
+	assert.BoolT(t, reading.Sats == 7, "GPS sats")
+
+	assert.BoolT(t, reading.HardwareAsString() == "BME280,CCS811,GPS", "hardware string")
+	assert.BoolT(t, fleq(reading.VoltageF(), 1.40), "voltage float", fmt.Sprintf("%f", reading.VoltageF()))
 }
