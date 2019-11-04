@@ -118,7 +118,7 @@ func (r Reading) String() string {
 	TVOC: %s
 	Voltage: %0.1fV (note voltages over 10V may not be accurate)
 `,
-		r.When.Format(util.TimeFormat),
+		r.When.In(Timezone).Format(util.TimeFormat),
 		r.HardwareAsString(),
 		uptime,
 		r.Temperature,
@@ -248,6 +248,6 @@ func (r *Reading) Unmarshal(data []byte) error {
 	}
 
 	r.CCS811Error = statusToCCS811Error(r.CCS811Status)
-	r.When = time.Date(int(year), time.Month(month), int(day), int(hour), int(minute), int(second), 0, Timezone)
+	r.When = time.Date(int(year), time.Month(month), int(day), int(hour), int(minute), int(second), 0, time.UTC)
 	return nil
 }
