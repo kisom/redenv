@@ -13,7 +13,7 @@ void	SOS();
 bool	SensorInit();
 void	RecordMeasurement(uint8_t *buf);
 bool	GPSUpdate();
-bool	GPSWaitForFix();
+void	GPSWaitForFix();
 
 
 #endif /* REDENV_SENSORS_H */

@@ -276,7 +276,8 @@ setup()
 	LMIC_reset();
 	Serial.println("LMIC RESET: OK");
 
-	LMIC_setLinkCheckMode(true);
+	// Don't set link check mode before session.
+	// LMIC_setLinkCheckMode(true);
 	// LMIC_setAdrMode(true);
 	LMIC_setDrTxpow(DR_SF9, 14);
 	LMIC_selectSubBand(1);
@@ -294,5 +295,6 @@ setup()
 void
 loop()
 {
+	GPSUpdate();
 	os_runloop_once();
 }

@@ -323,10 +323,14 @@ GPSUpdate()
 }
 
 
-bool
+void
 GPSWaitForFix()
 {
+	if (!gps.fix) {
+		Serial.println("GPS: no fix");
+	}
 	while (!GPSUpdate());
+	Serial.println("GPS: fix");
 }
 
 
