@@ -90,6 +90,7 @@ void os_getDevKey (u1_t* buf) {
 }
 static uint8_t sensorData[40];
 static osjob_t sendjob;
+static osjob_t ccs811job;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations). If no transmission has occurred in 10 TX intervals,
@@ -115,7 +116,7 @@ const lmic_pinmap lmic_pins = {
 
 
 void
-do_send(osjob_t* j)
+do_send(osjob_t *j)
 {
 	// Check if there is not a current TX/RX job running
 	if (LMIC.opmode & OP_TXRXPEND) {
@@ -124,10 +125,19 @@ do_send(osjob_t* j)
 		RecordMeasurement(sensorData);
 
 		// Prepare upstream data transmission at the next possible time.
-		LMIC_setTxData2(1, sensorData, 39, 1);
+		LMIC_setTxData2(1, sensorData, 41, 1);
 		Serial.println("Packet queued");
 	}
 	// Next TX is scheduled after TX_COMPLETE event.
+}
+
+
+void
+check_ccs811(osjob_t *j)
+{
+	if (!CheckCCS811()) {
+		os_setTimedCallback(&ccs811job, os_getTime() + sec2osticks(30), check_ccs811);
+	}
 }
 
 
@@ -289,7 +299,10 @@ setup()
 
 	// Start job (sending automatically starts OTAA too)
 	do_send(&sendjob);
+	// keep checking ccs811 until it's initialised.
+	check_ccs811(&ccs811job);
 	digitalWrite(LED_BUILTIN, HIGH);
+
 }
 
 void

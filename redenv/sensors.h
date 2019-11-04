@@ -10,6 +10,7 @@ static RTC_PCF8523	rtc;
 static uint32_t     lastReadingTime = 0;
 
 void	SOS();
+bool	CheckCCS811();
 bool	SensorInit();
 void	RecordMeasurement(uint8_t *buf);
 bool	GPSUpdate();

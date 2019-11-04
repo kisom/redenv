@@ -8,7 +8,7 @@
 #define CCS811_ADDR     0x5B	/* from datasheet */
 #define CCS811_RESET	A4
 #define PVPIN		A0	/* middle pin of the solar cell trimpot tap */
-#define READING_SIZE	39	/* how big is the reading struct in bytes */
+#define READING_SIZE	41	/* how big is the reading struct in bytes */
 
 
 
@@ -60,6 +60,8 @@ static uint8_t		availableHardware = 0;
 #define HW_BME280	1
 #define HW_CCS811	2
 #define HW_RTC		4
+#define HW_SD		8
+#define HW_GPS		16
 
 
 static void
@@ -141,7 +143,6 @@ getVoltage()
 	// Then, the voltage is divided by 10 again to scale it to a
 	// uint8_t. So, 8.4V should be a value of 84.
 	voltage_f *= 3.7;
-	voltage_f *= 10;
 	return (uint8_t)voltage_f;
 }
 
@@ -166,6 +167,8 @@ struct Reading {
 	uint8_t         voltage;
 	uint8_t         ccs811Status;
 	uint8_t         cal;    // is temperature calibrated?
+	uint8_t		fix;	// is GPS fixed?
+	uint8_t		sats;	// number of satellites
 };
 
 
@@ -185,7 +188,7 @@ now(struct Reading *r)
 static inline void
 packReading(struct Reading *r, uint8_t *buf)
 {
-	memcpy(buf, r, 39);
+	memcpy(buf, r, READING_SIZE);
 }
 
 
@@ -243,6 +246,34 @@ printCCS811Status(uint8_t status)
 }
 
 
+bool
+CheckCCS811()
+{
+	if (bme280Calibrated) {
+		return true;
+	}
+
+	if ((gpsUnixTime() - startupDTS) < 1200) {
+		return false;
+	}
+
+	auto ccs811Status = ccs811.checkForStatusError();
+	if (!ccs811Status) {
+		ccs811.setDriveMode(2);
+		availableHardware |= HW_CCS811;
+		tempCal = bme280.readTempC();
+		tempCal -= coldStartTemperature;
+		bme280Calibrated = true;
+		Serial.println("CCS811 RDY");
+		return true;
+	}
+	else {
+		printCCS811Status(ccs811.getErrorRegister());
+		return false;
+	}
+}
+
+
 void
 takeReading(struct Reading *r)
 {
@@ -251,23 +282,8 @@ takeReading(struct Reading *r)
 	r->uptime = lastReadingTime - startupDTS;
 	r->hw = availableHardware;
 	r->voltage = getVoltage();
-
-	yield();
-
-	if ((!bme280Calibrated) && (r->uptime >= 1200)) {
-		auto ccs811Status = ccs811.checkForStatusError();
-		if (!ccs811Status) {
-			ccs811.setDriveMode(2);
-			availableHardware |= HW_CCS811;
-			tempCal = bme280.readTempC();
-			tempCal -= coldStartTemperature;
-			bme280Calibrated = true;
-			Serial.println("CCS811 RDY");
-		}
-		else {
-			printCCS811Status(ccs811.getErrorRegister());
-		}
-	}
+	r->fix = gps.fix ? 1 : 0;
+	r->sats = gps.satellites;
 
 	yield();
 
@@ -329,7 +345,12 @@ GPSWaitForFix()
 	if (!gps.fix) {
 		Serial.println("GPS: no fix");
 	}
-	while (!GPSUpdate());
+	while (!GPSUpdate()) {
+		if ((millis() % 1000) == 0) {
+			Serial.print("SATS: ");
+			Serial.println((int)gps.satellites);
+		}
+	};
 	Serial.println("GPS: fix");
 }
 
@@ -346,7 +367,7 @@ SensorInit()
 	GPSWaitForFix();
 
 	startupDTS = gpsUnixTime();
-	availableHardware |= HW_RTC;
+	availableHardware |= HW_GPS;
 
 	// Pull the CCS811 low while we do other things to give it a
 	// good reset. It requires a minimum reset pulse length of 20μs

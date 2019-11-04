@@ -11,7 +11,7 @@ import (
 	"github.com/kisom/redenv/collector/util"
 )
 
-const ReadingSize = 39
+const ReadingSize = 41
 
 var Timezone *time.Location
 
@@ -70,6 +70,7 @@ const (
 	HardwareCCS811
 	HardwareRTC
 	HardwareSD
+	HardwareGPS
 )
 
 type Reading struct {
@@ -94,6 +95,8 @@ type Reading struct {
 	TVOC         int32
 
 	Voltage uint8
+	Fix     bool
+	Sats    uint8
 }
 
 func ccs811Reading(v int32, unit string) string {
@@ -117,6 +120,7 @@ func (r Reading) String() string {
 	CO2: %s
 	TVOC: %s
 	Voltage: %0.1fV (note voltages over 10V may not be accurate)
+	Sats: %d (fix? %s)
 `,
 		r.When.In(Timezone).Format(util.TimeFormat),
 		r.HardwareAsString(),
@@ -130,6 +134,8 @@ func (r Reading) String() string {
 		ccs811Reading(r.CO2, "ppm"),
 		ccs811Reading(r.TVOC, "ppb"),
 		r.VoltageF(),
+		r.Sats,
+		util.YOrN(r.Fix),
 	)
 
 }
@@ -139,7 +145,7 @@ func (r Reading) VoltageF() float32 {
 }
 
 func (r Reading) HardwareAsString() string {
-	hw := make([]string, 0, 4)
+	hw := make([]string, 0, 5)
 
 	if r.Hardware&HardwareBME280 != 0 {
 		hw = append(hw, "BME280")
@@ -155,6 +161,10 @@ func (r Reading) HardwareAsString() string {
 
 	if r.Hardware&HardwareSD != 0 {
 		hw = append(hw, "SD")
+	}
+
+	if r.Hardware&HardwareGPS != 0 {
+		hw = append(hw, "GPS")
 	}
 
 	return strings.Join(hw, ",")
@@ -232,6 +242,18 @@ func (r *Reading) Unmarshal(data []byte) error {
 	}
 
 	if err := read(&r.Voltage); err != nil {
+		return err
+	}
+
+	var fix uint8
+	if err := read(&fix); err != nil {
+		return err
+	}
+	if fix == 1 {
+		r.Fix = true
+	}
+
+	if err := read(&r.Sats); err != nil {
 		return err
 	}
 

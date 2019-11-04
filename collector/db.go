@@ -24,8 +24,10 @@ var (
 	ccs811_status,
 	co2,
 	tvoc,
-	voltage
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+	voltage,
+	fix,
+	sats
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 	insertUplink = `INSERT INTO uplinks (
 	id,
 	app_id,
@@ -71,7 +73,7 @@ func StoreUplink(db *sql.DB, r *reading.Reading, u *ttn.Uplink) error {
 		r.When.Unix(), r.Hardware, r.Uptime,
 		r.Temperature, r.TemperatureCalibration, r.TemperatureCalibrated,
 		r.Humidity, r.Pressure,
-		r.CCS811Status, r.CO2, r.TVOC, r.Voltage)
+		r.CCS811Status, r.CO2, r.TVOC, r.Voltage, r.Fix, r.Sats)
 	if err != nil {
 		// TODO: Could be a doule error, but not worth figuring out right now.
 		tx.Rollback()

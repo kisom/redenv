@@ -5,6 +5,7 @@ byte-pack sent by the sensor node.
 """
 
 import binascii
+import base64
 import datetime
 import struct
 import sys
@@ -39,7 +40,7 @@ class Reading:
         self.pressure = data[11] / 1000.0
         self.co2 = data[12]
         self.tvoc = data[13]
-        self.voltage = data[14] / 10.0
+        self.voltage = data[14] / 100.0
         self.ccs811_status = data[15]
         if data[16] == 1:
             self.calibrated = True
@@ -81,7 +82,10 @@ class Reading:
 
 
 def unpack(data):
-    data = binascii.unhexlify(data.replace(" ", ""))
+    try:
+        data = binascii.unhexlify(data.replace(" ", ""))
+    except binascii.Error:
+        data = base64.decodebytes(data.encode('utf-8'))
     return struct.unpack("<HBBBBBBIffffiiBBB", data)
 
 
