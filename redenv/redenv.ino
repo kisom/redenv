@@ -95,7 +95,7 @@ static osjob_t ccs811job;
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations). If no transmission has occurred in 10 TX intervals,
 // the system should reset itself.
-int unsigned TX_INTERVAL = 590;
+int unsigned TX_INTERVAL = 595;
 const unsigned WDT_INTERVAL = (TX_INTERVAL * 10);
 
 // Pin mapping for the particular Radiowing setup used by this project:

@@ -2,6 +2,7 @@
 #include <SparkFunBME280.h>
 #include <SparkFunCCS811.h>
 #include "sensors.h"
+#include <string.h>
 
 
 #define BME280_ID	0x60	/* from datasheet */
@@ -114,6 +115,18 @@ SOS()
 }
 
 
+static void
+printGPSTime()
+{
+	char	buf[20];
+
+	snprintf(buf, 20, "%04d-%02d-%02d %02d:%02d:%02d", gps.year+2000, gps.month, gps.day,
+			gps.hour, gps.minute, gps.seconds);
+	Serial.print("GPS TIME: ");
+	Serial.println(buf);
+}
+
+
 static uint32_t
 gpsUnixTime()
 {
@@ -176,6 +189,7 @@ struct Reading {
 static void
 now(struct Reading *r)
 {
+	printGPSTime();
 	r->year = gps.year+2000;
 	r->month = gps.month;
 	r->day = gps.day;
@@ -259,10 +273,17 @@ CheckCCS811()
 
 	auto ccs811Status = ccs811.checkForStatusError();
 	if (!ccs811Status) {
-		ccs811.setDriveMode(2);
 		availableHardware |= HW_CCS811;
 		tempCal = bme280.readTempC();
 		tempCal -= coldStartTemperature;
+		if (tempCal < 0) {
+			// Things should only be heating up, not cooling off.
+			tempCal = 0.0;
+		}
+		else if (tempCal > 1.0) {
+			// The CCS811 doesn't contribute a large amount of heat.
+			tempCal = 1.0;
+		}
 		bme280Calibrated = true;
 		Serial.println("CCS811 RDY");
 		return true;
@@ -278,11 +299,10 @@ void
 takeReading(struct Reading *r)
 {
 	now(r);
-	lastReadingTime = gpsUnixTime();
-	r->uptime = lastReadingTime - startupDTS;
+	r->uptime = gpsUnixTime() - startupDTS;
 	r->hw = availableHardware;
 	r->voltage = getVoltage();
-	r->fix = gps.fix ? 1 : 0;
+	r->fix = gps.fixquality > 0 ? 1 : 0;
 	r->sats = gps.satellites;
 
 	yield();
@@ -335,7 +355,12 @@ GPSUpdate()
 	if (gps.newNMEAreceived()) {
 		gps.parse(gps.lastNMEA());
 	}
-	return gps.fix;
+
+	if (gps.year < 19) {
+		return false;
+	}
+	return true;
+
 }
 
 
@@ -346,6 +371,7 @@ GPSWaitForFix()
 		Serial.println("GPS: no fix");
 	}
 	while (!GPSUpdate()) {
+		delay(10);
 		if ((millis() % 1000) == 0) {
 			Serial.print("SATS: ");
 			Serial.println((int)gps.satellites);
@@ -365,6 +391,7 @@ SensorInit()
 	gps.sendCommand(PGCMD_ANTENNA);
 #endif // GPS_NO_ANTENNA_UPDATES
 	GPSWaitForFix();
+	printGPSTime();
 
 	startupDTS = gpsUnixTime();
 	availableHardware |= HW_GPS;
@@ -384,10 +411,12 @@ SensorInit()
 
 	// Let the CCS811 fly free!
 	digitalWrite(CCS811_RESET, HIGH);
+	delay(1);
 	auto ccs811Status = ccs811.begin();
 	if (ccs811Status == CCS811Core::SENSOR_SUCCESS) {
 		delay(100);
-		ccs811.setDriveMode(0);
+		// Drive mode 3: update every 60 seconds.
+		ccs811.setDriveMode(3);
 	}
 	else {
 		printCCS811Status((uint8_t)ccs811Status);

@@ -74,7 +74,7 @@ class Reading:
 
     def __str__(self):
         return f"""Timestamp: {self.when}
-\tHardware: {self.hardware()}
+\tHardware: {self.hardware()} ({self.hw})
 \tUptime: {self.uptime}s
 \tTemperature: {self.temperature:0.1f}°C
 \t\tCalibrated? {self.calibrated}
