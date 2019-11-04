@@ -27,6 +27,8 @@ class Reading:
         "voltage",
         "ccs811_status",
         "calibrated",
+        "fix",
+        "sats"
     ]
 
     def __init__(self, data):
@@ -46,6 +48,9 @@ class Reading:
             self.calibrated = True
         else:
             self.calibrated = False
+        if data[17] == 1:
+            self.fix = True
+        self.sats = data[18]
 
     def hardware(self):
         hw = []
@@ -57,6 +62,8 @@ class Reading:
             hw.append("PCF8523 RTC")
         if self.hw & 8:
             hw.append("SD")
+        if self.hw & 16:
+            hw.append("GPS")
 
         return hw
 
@@ -78,6 +85,7 @@ class Reading:
 \tTVOC: {self.tvoc} ppb
 \tVoltage: {self.voltage}V
 \tCCS811 status: {self.ccs811_status_str()}
+\tSats: {self.sats} (fix={self.fix})
 """
 
 
@@ -86,7 +94,7 @@ def unpack(data):
         data = binascii.unhexlify(data.replace(" ", ""))
     except binascii.Error:
         data = base64.decodebytes(data.encode('utf-8'))
-    return struct.unpack("<HBBBBBBIffffiiBBB", data)
+    return struct.unpack("<HBBBBBBIffffiiBBBBB", data)
 
 
 def translate(data):

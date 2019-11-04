@@ -148,7 +148,7 @@ getVoltage()
 
 
 // This can be unpacked with the following Python struct format:
-// 	'<HBBBBBBIffffiiBBB'
+// 	'<HBBBBBBIffffiiBBBBB'
 struct Reading {
 	uint16_t        year;
 	uint8_t         month;
