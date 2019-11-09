@@ -138,25 +138,23 @@ gpsUnixTime()
 uint8_t
 getVoltage()
 {
-	float	voltage_f;
+	float	voltage = 0.0;
 	/*
 	   First, take the average of 10 readings to account
 	   for small-scale voltage fluctuations.
 	   */
-	int	voltage = analogRead(PVPIN);
 
-	for (auto i = 0; i < 9; i++) {
+	for (auto i = 0; i < 10; i++) {
 		voltage += analogRead(PVPIN);
 		delayMicroseconds(11);
 	}
 	voltage /= 10;
-	voltage_f = static_cast<float>(voltage);
 
 	// The trimpot is set halfway, which divides the voltage in half.
 	// Then, the voltage is divided by 10 again to scale it to a
 	// uint8_t. So, 8.4V should be a value of 84.
-	voltage_f *= 3.7;
-	return (uint8_t)voltage_f;
+	voltage /= 8.44;
+	return static_cast<uint8_t>(voltage);
 }
 
 
